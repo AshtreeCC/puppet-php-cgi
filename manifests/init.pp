@@ -36,54 +36,47 @@ class php::install {
         command => '/usr/bin/pear install pear.phpunit.de/PHPUnit --alldeps',
         require => [Exec['pear-auto-discover'], Exec['pear-update']]
     }
-
-    exec { 'install-phpdocumentor':
-        unless => "/usr/bin/which phpdoc",
-        command => "/usr/bin/pear install pear.phpdoc.org/phpDocumentor-alpha --alldeps",
-        require => [Exec['pear-auto-discover'], Exec['pear-update']]
-    }
 }
 
 class php::configure {
+
+    package { 'sed':
+      ensure => installed
+    }
+
     exec { 'php-cli-set-timezone':
         path => '/usr/bin:/usr/sbin:/bin',
         command => 'sed -i \'s/^[; ]*date.timezone =.*/date.timezone = Africa\/Johannesburg/g\' /etc/php5/cli/php.ini',
         onlyif => 'test "`php -c /etc/php5/cli/php.ini -r \"echo ini_get(\'date.timezone\');\"`" = ""',
-        require => Class['php::install']
+        require => [Class['php::install'], Package['sed']]
     }
 
     exec { 'php-cli-disable-short-open-tag':
         path => '/usr/bin:/usr/sbin:/bin',
         command => 'sed -i \'s/^[; ]*short_open_tag =.*/short_open_tag = Off/g\' /etc/php5/cli/php.ini',
         onlyif => 'test "`php -c /etc/php5/cli/php.ini -r \"echo ini_get(\'short_open_tag\');\"`" = "1"',
-        require => Class['php::install']
+        require => [Class['php::install'], Package['sed']]
     }
 
-    exec { 'php-fpm-set-timezone':
+    exec { 'php-apache-set-timezone':
         path => '/usr/bin:/usr/sbin:/bin',
-        command => 'sed -i \'s/^[; ]*date.timezone =.*/date.timezone = Africa\/Johannesburg/g\' /etc/php5/fpm/php.ini',
-        onlyif => 'test "`php -c /etc/php5/fpm/php.ini -r \"echo ini_get(\'date.timezone\');\"`" = ""',
-        require => Class['php::install'],
-        notify => Service['php5-fpm']
+        command => 'sed -i \'s/^[; ]*date.timezone =.*/date.timezone = Africa\/Johannesburg/g\' /etc/php5/apache2/php.ini',
+        onlyif => 'test "`php -c /etc/php5/apache2/php.ini -r \"echo ini_get(\'date.timezone\');\"`" = ""',
+        require => [Class['php::install'], Package['sed']],
+        notify => Service['apache2']
     }
 
-    exec { 'php-fpm-disable-short-open-tag':
+    exec { 'php-apache-disable-short-open-tag':
         path => '/usr/bin:/usr/sbin:/bin',
-        command => 'sed -i \'s/^[; ]*short_open_tag =.*/short_open_tag = Off/g\' /etc/php5/fpm/php.ini',
-        onlyif => 'test "`php -c /etc/php5/fpm/php.ini -r \"echo ini_get(\'short_open_tag\');\"`" = "1"',
-        require => Class['php::install'],
-        notify => Service['php5-fpm']
+        command => 'sed -i \'s/^[; ]*short_open_tag =.*/short_open_tag = Off/g\' /etc/php5/apache2/php.ini',
+        onlyif => 'test "`php -c /etc/php5/apache2/php.ini -r \"echo ini_get(\'short_open_tag\');\"`" = "1"',
+        require => [Class['php::install'], Package['sed']],
+        notify => Service['apache2']
     }
 }
 
 class php::run {
-    service { php5-fpm:
-        enable => true,
-        ensure => running,
-        hasstatus => true,
-        hasrestart => true,
-        require => Class['php::install', 'php::configure'],
-    }
+
 }
 
 class php {
